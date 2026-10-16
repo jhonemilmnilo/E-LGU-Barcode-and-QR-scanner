@@ -584,7 +584,7 @@ class _HomeScreenState extends State<HomeScreen> {
       foregroundColor: Colors.white,
       elevation: 2,
       shadowColor: Colors.black26,
-      toolbarHeight: 70,
+      toolbarHeight: 62,
       titleSpacing: 16,
       automaticallyImplyLeading: false,
       shape: const RoundedRectangleBorder(
@@ -708,7 +708,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildScanHeroCard() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 18),
-      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -736,7 +736,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 8),
             child: Text(
-              "Scan the citizen's booked QR ticket or manually type the queue number below to verify and queue them.",
+              "Scan ticket QR code or enter queue number to verify.",
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12.5,
@@ -745,11 +745,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           // Tap to Scan Button
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 46,
             child: ElevatedButton.icon(
               onPressed: _openScanner,
               icon: const Icon(Icons.qr_code_scanner_rounded, size: 22),
@@ -765,7 +765,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           // Divider
           Row(
             children: [
@@ -785,13 +785,13 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(child: Divider(color: Colors.grey.shade200, thickness: 1)),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           // Manual Queue Number Input + Check Button
           Row(
             children: [
               Expanded(
                 child: Container(
-                  height: 50,
+                  height: 46,
                   decoration: BoxDecoration(
                     color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(14),
@@ -824,8 +824,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: 10),
               // Check Button
               SizedBox(
-                height: 50,
-                width: 56,
+                height: 46,
+                width: 50,
                 child: ElevatedButton(
                   onPressed: _isManualCheckingIn ? null : _handleManualCheckIn,
                   style: ElevatedButton.styleFrom(
@@ -857,7 +857,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildMetricsCard() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 18),
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -911,15 +911,15 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(7),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
-          child: Icon(icon, color: iconColor, size: 18),
+          child: Icon(icon, color: iconColor, size: 16),
         ),
         const SizedBox(height: 8),
         Text(
           count,
           style: const TextStyle(
-            fontSize: 22,
+            fontSize: 20,
             fontWeight: FontWeight.w900,
             color: Color(0xFF0F172A),
           ),
@@ -968,7 +968,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 8),
           if (_activeQueue.isEmpty)
             Container(
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -1108,13 +1108,13 @@ class _HomeScreenState extends State<HomeScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             children: [
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               _buildScanHeroCard(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _buildMetricsCard(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _buildActiveQueueSection(),
-              const SizedBox(height: 30),
+              const SizedBox(height: 24),
             ],
           ),
         ),
