@@ -22,7 +22,7 @@ class FrontdeskScannerApp extends StatelessWidget {
       valueListenable: ThemeController.themeMode,
       builder: (context, currentMode, _) {
         return MaterialApp(
-          title: 'Municipal Front Desk',
+          title: 'Queue No. Scanner',
           debugShowCheckedModeBanner: false,
           themeMode: currentMode,
           theme: ThemeData(
