@@ -1,3 +1,5 @@
+import '../theme/theme_controller.dart';
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'home_screen.dart';
@@ -115,15 +117,56 @@ class _LoginScreenState extends State<LoginScreen> {
     // Use dynamic themeColor, or primary theme from Context
     final activeThemeColor = _themeColor ?? Theme.of(context).colorScheme.primary;
 
+    final colors = context.colors;
+    final isDark = context.isDarkMode;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: colors.scaffoldBg,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+        child: Stack(
+          children: [
+            // Top Theme Toggle Button
+            Positioned(
+              top: 12,
+              right: 18,
+              child: Material(
+                color: colors.cardBg,
+                borderRadius: BorderRadius.circular(12),
+                elevation: 1,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => ThemeController.toggleTheme(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                          size: 17,
+                          color: isDark ? const Color(0xFFF59E0B) : const Color(0xFF64748B),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          isDark ? 'Light' : 'Dark',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                 // Municipal Seal Logo / Dynamic Barcode Icon
                 Container(
                   width: 96,
@@ -166,10 +209,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Kiosk Check-In',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                  style: TextStyle(fontSize: 13, color: colors.textSecondary),
                 ),
                 const SizedBox(height: 32),
                 if (_errorMessage != null) ...[
@@ -202,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: 'Frontdesk Email',
                     hintText: 'frontdesk@mapandan.gov.ph',
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: colors.inputBg,
                     prefixIcon: Icon(Icons.email_outlined, color: activeThemeColor),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -210,11 +253,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      borderSide: BorderSide(color: colors.inputBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      borderSide: BorderSide(color: colors.inputBorder),
                     ),
                   ),
                 ),
@@ -225,7 +268,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: InputDecoration(
                     labelText: 'Password',
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: colors.inputBg,
                     prefixIcon: Icon(Icons.lock_outline_rounded, color: activeThemeColor),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -234,17 +277,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        color: Colors.grey,
+                        color: colors.textSecondary,
                       ),
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      borderSide: BorderSide(color: colors.inputBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      borderSide: BorderSide(color: colors.inputBorder),
                     ),
                   ),
                 ),
@@ -304,8 +347,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ],
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

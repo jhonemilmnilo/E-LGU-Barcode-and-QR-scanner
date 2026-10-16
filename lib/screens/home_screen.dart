@@ -1,3 +1,5 @@
+import '../theme/theme_controller.dart';
+import '../theme/app_colors.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -34,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // History State & Infinite Pagination
   final ScrollController _historyScrollController = ScrollController();
   final TextEditingController _historySearchController = TextEditingController();
+  Timer? _searchDebounceTimer;
   List<dynamic> _historyList = [];
   int _historyPage = 1;
   int _historyTotalCount = 0;
@@ -188,6 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _manualQueueController.dispose();
     _historyScrollController.dispose();
     _historySearchController.dispose();
+    _searchDebounceTimer?.cancel();
     _clockTimer.cancel();
     _pollingTimer?.cancel();
     super.dispose();
@@ -783,6 +787,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDateTimeBanner() {
+    final colors = context.colors;
     final dateFormat = DateFormat('EEEE, MMM d, yyyy');
     final timeFormat = DateFormat('h:mm a');
 
@@ -790,9 +795,9 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 18),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.cardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: colors.cardBorder),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -845,15 +850,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildScanHeroCard() {
+    final colors = context.colors;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 18),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.cardBg,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colors.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: context.isDarkMode ? 0.2 : 0.05),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -862,24 +869,24 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Text(
+          Text(
             "Scan Applicants",
             style: TextStyle(
               fontSize: 19,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF0F172A),
+              color: colors.textPrimary,
               letterSpacing: -0.3,
             ),
           ),
           const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
               "Scan ticket QR code or enter queue number to verify.",
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12.5,
-                color: Color(0xFF64748B),
+                color: colors.textSecondary,
                 height: 1.4,
               ),
             ),
@@ -932,17 +939,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Container(
                   height: 46,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: colors.inputBg,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: colors.inputBorder),
                   ),
                   child: TextField(
                     controller: _manualQueueController,
                     textCapitalization: TextCapitalization.characters,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      color: colors.textPrimary,
                       letterSpacing: 0.5,
                     ),
                     decoration: const InputDecoration(
@@ -994,13 +1001,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMetricsCard() {
+    final colors = context.colors;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 18),
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        border: Border.all(color: colors.cardBorder),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -1019,7 +1027,7 @@ class _HomeScreenState extends State<HomeScreen> {
             count: _totalToday.toString(),
             label: 'Total Today',
           ),
-          Container(width: 1, height: 44, color: const Color(0xFFF1F5F9)),
+          Container(width: 1, height: 44, color: colors.divider),
           _buildMetricColumn(
             icon: Icons.access_time_filled_rounded,
             iconColor: const Color(0xFF6366F1),
@@ -1027,7 +1035,7 @@ class _HomeScreenState extends State<HomeScreen> {
             count: _inQueue.toString(),
             label: 'In Queue',
           ),
-          Container(width: 1, height: 44, color: const Color(0xFFF1F5F9)),
+          Container(width: 1, height: 44, color: colors.divider),
           _buildMetricColumn(
             icon: Icons.check_circle_rounded,
             iconColor: const Color(0xFF16A34A),
@@ -1057,10 +1065,10 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 8),
         Text(
           count,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w900,
-            color: Color(0xFF0F172A),
+            color: context.colors.textPrimary,
           ),
         ),
         const SizedBox(height: 2),
@@ -1081,12 +1089,12 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Active Queue',
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+                  color: context.colors.textPrimary,
                 ),
               ),
               TextButton(
@@ -1258,7 +1266,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // Live Active Queue (Full View) - Strictly Current Day Only
       final dateFormat = DateFormat('EEE, MMM d, yyyy');
       return Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: context.colors.scaffoldBg,
         appBar: AppBar(
           backgroundColor: _themeColor,
           foregroundColor: Colors.white,
@@ -1329,8 +1337,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 1)),
+                  color: context.colors.cardBg,
+                  border: Border(bottom: BorderSide(color: context.colors.cardBorder, width: 1)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1348,20 +1356,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(width: 8),
                         Text(
                           '${_activeQueue.length} Active in Queue Today',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
+                            color: context.colors.textPrimary,
                           ),
                         ),
                       ],
                     ),
                     Text(
                       'Waiting: $_inQueue • Served: $_served',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF64748B),
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ],
@@ -1527,11 +1535,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHistoryView() {
+    final colors = context.colors;
     final dateFormat = DateFormat('MMM d, yyyy');
     final timeFormat = DateFormat('h:mm a');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: colors.scaffoldBg,
       appBar: AppBar(
         backgroundColor: _themeColor,
         foregroundColor: Colors.white,
@@ -1588,21 +1597,28 @@ class _HomeScreenState extends State<HomeScreen> {
           // Search & Filter Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            color: Colors.white,
+            color: colors.cardBg,
             child: Row(
               children: [
                 Expanded(
                   child: Container(
                     height: 42,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
+                      color: colors.inputBg,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: colors.inputBorder),
                     ),
                     child: TextField(
                       controller: _historySearchController,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary),
                       textInputAction: TextInputAction.search,
+                      onChanged: (value) {
+                        _searchDebounceTimer?.cancel();
+                        _searchDebounceTimer = Timer(const Duration(milliseconds: 400), () {
+                          _fetchHistory(refresh: true);
+                        });
+                        setState(() {});
+                      },
                       onSubmitted: (_) => _fetchHistory(refresh: true),
                       decoration: InputDecoration(
                         hintText: 'Search queue, citizen or ticket...',
@@ -1612,6 +1628,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ? IconButton(
                                 icon: const Icon(Icons.clear_rounded, size: 16, color: Color(0xFF64748B)),
                                 onPressed: () {
+                                  _searchDebounceTimer?.cancel();
                                   _historySearchController.clear();
                                   _fetchHistory(refresh: true);
                                 },
@@ -1729,7 +1746,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               final serviceName = item['serviceName'] ?? 'Municipal Service';
                               final department = item['department'] ?? 'General';
                               final isPriority = item['isPriority'] == true;
-                              final status = (item['status'] ?? 'WAITING').toString().toUpperCase();
+                              String status = (item['status'] ?? 'QUEUEING').toString().toUpperCase();
+                              if (status == 'BOOKED' || status == 'WAITING') {
+                                status = 'QUEUEING';
+                              }
 
                               DateTime? checkInDate;
                               if (item['checkedInAt'] != null) {
@@ -1749,16 +1769,16 @@ class _HomeScreenState extends State<HomeScreen> {
                               }
 
                               return Container(
-                                padding: const EdgeInsets.all(13),
+                                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(12),
                                   border: Border.all(color: const Color(0xFFE2E8F0)),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withValues(alpha: 0.02),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
                                     ),
                                   ],
                                 ),
@@ -1766,73 +1786,33 @@ class _HomeScreenState extends State<HomeScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.center,
                                       children: [
-                                        // Queue Number Pill
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                          decoration: BoxDecoration(
-                                            color: _themeColor.withValues(alpha: 0.09),
-                                            borderRadius: BorderRadius.circular(9),
-                                            border: Border.all(color: _themeColor.withValues(alpha: 0.2)),
-                                          ),
-                                          child: Text(
-                                            queueNo,
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w900,
-                                              letterSpacing: 0.3,
-                                              color: _themeColor,
-                                            ),
+                                        // Queue Number Text
+                                        Text(
+                                          queueNo,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0.3,
+                                            color: _themeColor,
                                           ),
                                         ),
                                         const SizedBox(width: 10),
-                                        // Citizen Name & Priority Tag
+                                        // Citizen Name
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      citizenName,
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                      style: const TextStyle(
-                                                        fontSize: 14,
-                                                        fontWeight: FontWeight.w800,
-                                                        color: Color(0xFF0F172A),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  if (isPriority) ...[
-                                                    const SizedBox(width: 6),
-                                                    Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: const Color(0xFFFEF2F2),
-                                                        borderRadius: BorderRadius.circular(6),
-                                                        border: Border.all(color: const Color(0xFFFECACA)),
-                                                      ),
-                                                      child: const Row(
-                                                        mainAxisSize: MainAxisSize.min,
-                                                        children: [
-                                                          Icon(Icons.star_rounded, size: 11, color: Color(0xFFDC2626)),
-                                                          SizedBox(width: 2),
-                                                          Text(
-                                                            'PRIORITY',
-                                                            style: TextStyle(
-                                                              fontSize: 9.5,
-                                                              fontWeight: FontWeight.w900,
-                                                              color: Color(0xFFDC2626),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ],
+                                              Text(
+                                                citizenName,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Color(0xFF0F172A),
+                                                ),
                                               ),
                                               const SizedBox(height: 2),
                                               Text(
@@ -1851,15 +1831,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                         const SizedBox(width: 8),
                                         // Status badge
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                                           decoration: BoxDecoration(
                                             color: statusBg,
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: Text(
                                             status,
                                             style: TextStyle(
-                                              fontSize: 10,
+                                              fontSize: 9.5,
                                               fontWeight: FontWeight.w800,
                                               color: statusFg,
                                             ),
@@ -1867,30 +1847,66 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 9),
-                                    const Divider(height: 1, thickness: 0.8, color: Color(0xFFF1F5F9)),
                                     const SizedBox(height: 7),
+                                    Divider(height: 1, thickness: 0.8, color: colors.divider),
+                                    const SizedBox(height: 6),
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        // Department Chip
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.account_balance_rounded, size: 13, color: Color(0xFF64748B)),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              department,
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                                color: Color(0xFF64748B),
+                                        // Department / Category Chip
+                                        Flexible(
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.account_balance_rounded, size: 13, color: Color(0xFF64748B)),
+                                              const SizedBox(width: 4),
+                                              Flexible(
+                                                child: Text(
+                                                  department,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Color(0xFF64748B),
+                                                  ),
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
+                                        // Priority Badge (In the middle)
+                                        if (isPriority) ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFFEF2F2),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: const Color(0xFFFECACA)),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.star_rounded, size: 11, color: Color(0xFFDC2626)),
+                                                SizedBox(width: 2),
+                                                Text(
+                                                  'PRIORITY',
+                                                  style: TextStyle(
+                                                    fontSize: 9.5,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Color(0xFFDC2626),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                        ],
                                         // Check-in Timestamp
                                         if (checkInDate != null)
                                           Row(
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
                                               const Icon(Icons.access_time_rounded, size: 12.5, color: Color(0xFF94A3B8)),
                                               const SizedBox(width: 4),
@@ -1920,7 +1936,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildAppDrawer() {
     return Drawer(
-      backgroundColor: Colors.white,
+      backgroundColor: context.colors.drawerBg,
       child: Column(
         children: [
           // Drawer Header
@@ -2075,6 +2091,52 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const Spacer(),
 
+          // Dynamic Dark / Light Theme Toggle Pill
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: context.colors.chipBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: context.colors.cardBorder),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        context.isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                        size: 20,
+                        color: context.isDarkMode ? const Color(0xFFF59E0B) : const Color(0xFFEAB308),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        context.isDarkMode ? 'Dark Mode' : 'Light Mode',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: context.colors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Switch(
+                    value: context.isDarkMode,
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: _themeColor,
+                    inactiveThumbColor: Colors.white,
+                    inactiveTrackColor: const Color(0xFFCBD5E1),
+                    onChanged: (_) async {
+                      await ThemeController.toggleTheme();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           // Logout Button at Footer
           Padding(
             padding: const EdgeInsets.all(16),
@@ -2168,7 +2230,7 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(
             fontSize: 14.5,
             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            color: isSelected ? _themeColor : const Color(0xFF1E293B),
+            color: isSelected ? _themeColor : context.colors.textPrimary,
           ),
         ),
         trailing: badgeText != null && badgeText != '0'
@@ -2197,7 +2259,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: context.colors.scaffoldBg,
       drawer: _buildAppDrawer(),
       appBar: _currentTabIndex == 0 ? _buildAppBar() : null,
       body: SafeArea(
