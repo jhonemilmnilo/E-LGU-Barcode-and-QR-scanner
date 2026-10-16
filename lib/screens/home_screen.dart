@@ -576,132 +576,170 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    final dateFormat = DateFormat('MMM dd, yyyy');
-    final timeFormat = DateFormat('h:mm a');
-
     return AppBar(
       backgroundColor: _themeColor,
       foregroundColor: Colors.white,
       elevation: 2,
       shadowColor: Colors.black26,
-      toolbarHeight: 62,
+      toolbarHeight: 70,
       titleSpacing: 16,
       automaticallyImplyLeading: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
       ),
-      title: Row(
-        children: [
-          // Municipality Seal Logo
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
-            ),
-            child: ClipOval(
-              child: _siteLogo != null && _siteLogo!.isNotEmpty
-                  ? Image.network(
-                      _siteLogo!.startsWith('http')
-                          ? _siteLogo!
-                          : '${ApiService.defaultBaseUrl}$_siteLogo',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
+      title: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(
+          children: [
+            // Municipality Seal Logo
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+              ),
+              child: ClipOval(
+                child: _siteLogo != null && _siteLogo!.isNotEmpty
+                    ? Image.network(
+                        _siteLogo!.startsWith('http')
+                            ? _siteLogo!
+                            : '${ApiService.defaultBaseUrl}$_siteLogo',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.account_balance_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      )
+                    : const Icon(
                         Icons.account_balance_rounded,
                         color: Colors.white,
-                        size: 24,
+                        size: 22,
                       ),
-                    )
-                  : const Icon(
-                      Icons.account_balance_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          // Titles
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _municipalityName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                Text(
-                  'Kiosk Check-In Terminal',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        // Live Clock Pill & Quick Refresh
-        Container(
-          margin: const EdgeInsets.only(right: 14),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.access_time_filled_rounded, color: Colors.white, size: 14),
-              const SizedBox(width: 6),
-              Column(
-                mainAxisSize: MainAxisSize.min,
+            const SizedBox(width: 12),
+            // Titles
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    dateFormat.format(_currentTime),
+                    _municipalityName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
                     ),
                   ),
                   Text(
-                    timeFormat.format(_currentTime),
+                    'Kiosk Check-In Terminal',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 9.5,
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(width: 4),
-              InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => _fetchDashboardData(),
-                child: const Padding(
-                  padding: EdgeInsets.all(2.0),
-                  child: Icon(Icons.refresh_rounded, color: Colors.white, size: 16),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 12, top: 4),
+          child: IconButton(
+            onPressed: () {
+              _fetchDashboardData();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Dashboard refreshed'),
+                  duration: Duration(seconds: 1),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            icon: Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+            ),
+            tooltip: 'Refresh',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateTimeBanner() {
+    final dateFormat = DateFormat('EEEE, MMM d, yyyy');
+    final timeFormat = DateFormat('h:mm a');
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.calendar_today_rounded, size: 14, color: _themeColor),
+              const SizedBox(width: 6),
+              Text(
+                dateFormat.format(_currentTime),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF334155),
                 ),
               ),
             ],
           ),
-        ),
-      ],
+          Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF16A34A),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                timeFormat.format(_currentTime),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -991,46 +1029,47 @@ class _HomeScreenState extends State<HomeScreen> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _activeQueue.length > 4 ? 4 : _activeQueue.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              separatorBuilder: (_, _) => const SizedBox(height: 6),
               itemBuilder: (context, index) {
                 final item = _activeQueue[index];
                 final isNowServing = item['status'] == 'Now Serving';
 
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: const Color(0xFFF1F5F9)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.02),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                        color: Colors.black.withValues(alpha: 0.015),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
                       ),
                     ],
                   ),
                   child: Row(
                     children: [
-                      // Badge Pill
+                      // Compact Badge Pill
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                         decoration: BoxDecoration(
                           color: isNowServing
                               ? const Color(0xFFDCFCE7)
-                              : _themeColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
+                              : _themeColor.withValues(alpha: 0.09),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           item['queueNumber'] ?? 'N/A',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12.5,
                             fontWeight: FontWeight.w900,
+                            letterSpacing: 0.2,
                             color: isNowServing ? const Color(0xFF16A34A) : _themeColor,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 10),
                       // Service / Department
                       Expanded(
                         child: Column(
@@ -1041,48 +1080,41 @@ class _HomeScreenState extends State<HomeScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 14,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFF0F172A),
                               ),
                             ),
-                            const SizedBox(height: 2),
                             Text(
                               item['department'] ?? 'General',
                               style: const TextStyle(
-                                fontSize: 11.5,
+                                fontSize: 11,
                                 color: Color(0xFF64748B),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      // Status Pill
+                      // Compact Status Pill
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                         decoration: BoxDecoration(
                           color: isNowServing
                               ? const Color(0xFFDCFCE7)
                               : const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Column(
-                          children: [
-                            Text(
-                              item['status'] ?? 'Waiting',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: isNowServing
-                                    ? const Color(0xFF16A34A)
-                                    : const Color(0xFF2563EB),
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          item['status'] ?? 'Waiting',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: isNowServing
+                                ? const Color(0xFF16A34A)
+                                : const Color(0xFF2563EB),
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      const Icon(Icons.chevron_right_rounded, color: Color(0xFFCBD5E1), size: 20),
                     ],
                   ),
                 );
@@ -1109,10 +1141,12 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             children: [
               const SizedBox(height: 12),
+              _buildDateTimeBanner(),
+              const SizedBox(height: 10),
               _buildScanHeroCard(),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               _buildMetricsCard(),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               _buildActiveQueueSection(),
               const SizedBox(height: 24),
             ],
