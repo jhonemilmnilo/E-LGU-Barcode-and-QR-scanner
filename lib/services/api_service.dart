@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Local development testing server (mapped via `adb reverse tcp:3000 tcp:3000`)
-  static const String defaultBaseUrl = "http://192.168.10.116:3000";
+  static const String defaultBaseUrl = "https://emapandan.vercel.app";
   static const String appKey = "agno-mobile-secret-2024";
 
   // Supabase Realtime Configuration
