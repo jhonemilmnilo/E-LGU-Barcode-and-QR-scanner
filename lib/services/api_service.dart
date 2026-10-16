@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Local development testing server (mapped via `adb reverse tcp:3000 tcp:3000`)
-  static const String defaultBaseUrl = "http://192.168.1.141:3000";
+  static const String defaultBaseUrl = "https://emapandan.vercel.app";
   static const String appKey = "agno-mobile-secret-2024";
 
   // Supabase Realtime Configuration
@@ -227,7 +227,6 @@ class ApiService {
     }
   }
 
-  
   static Future<Map<String, dynamic>> getTicketInfo(String code) async {
     final base = await getBaseUrl();
     final token = await getToken();
@@ -256,10 +255,7 @@ class ApiService {
       final data = jsonDecode(response.body);
       return data;
     } catch (e) {
-      return {
-        'success': false,
-        'error': 'Connection error: $e',
-      };
+      return {'success': false, 'error': 'Connection error: $e'};
     }
   }
 
