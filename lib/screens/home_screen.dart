@@ -31,6 +31,16 @@ class _HomeScreenState extends State<HomeScreen> {
   int _served = 0;
   List<dynamic> _activeQueue = [];
 
+  // History State & Infinite Pagination
+  final ScrollController _historyScrollController = ScrollController();
+  final TextEditingController _historySearchController = TextEditingController();
+  List<dynamic> _historyList = [];
+  int _historyPage = 1;
+  int _historyTotalCount = 0;
+  bool _isHistoryLoading = false;
+  bool _isHistoryLoadingMore = false;
+  bool _historyHasMore = true;
+
   // Live Clock
   late Timer _clockTimer;
   DateTime _currentTime = DateTime.now();
@@ -51,6 +61,89 @@ class _HomeScreenState extends State<HomeScreen> {
     _pollingTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       _fetchDashboardData(silent: true);
     });
+
+    _historyScrollController.addListener(_onHistoryScroll);
+  }
+
+  void _onHistoryScroll() {
+    if (_historyScrollController.position.pixels >=
+        _historyScrollController.position.maxScrollExtent - 200) {
+      if (!_isHistoryLoading && !_isHistoryLoadingMore && _historyHasMore) {
+        _loadMoreHistory();
+      }
+    }
+  }
+
+  Future<void> _fetchHistory({bool refresh = false}) async {
+    if (refresh) {
+      setState(() {
+        _historyPage = 1;
+        _historyHasMore = true;
+        _isHistoryLoading = true;
+      });
+    } else {
+      setState(() => _isHistoryLoading = true);
+    }
+
+    final query = _historySearchController.text.trim();
+    final res = await ApiService.getCheckInHistory(
+      page: 1,
+      limit: 15,
+      search: query.isNotEmpty ? query : null,
+    );
+
+    if (!mounted) return;
+
+    if (res['success'] == true) {
+      final List<dynamic> items = res['data'] ?? [];
+      final pagination = res['pagination'] ?? {};
+      setState(() {
+        _historyList = items;
+        _historyPage = 1;
+        _historyTotalCount = pagination['totalCount'] ?? items.length;
+        _historyHasMore = pagination['hasMore'] ?? false;
+        _isHistoryLoading = false;
+      });
+    } else {
+      setState(() => _isHistoryLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['error'] ?? 'Failed to load check-in history'),
+          backgroundColor: const Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _loadMoreHistory() async {
+    if (_isHistoryLoadingMore || !_historyHasMore) return;
+
+    setState(() => _isHistoryLoadingMore = true);
+    final nextPage = _historyPage + 1;
+    final query = _historySearchController.text.trim();
+
+    final res = await ApiService.getCheckInHistory(
+      page: nextPage,
+      limit: 15,
+      search: query.isNotEmpty ? query : null,
+    );
+
+    if (!mounted) return;
+
+    if (res['success'] == true) {
+      final List<dynamic> newItems = res['data'] ?? [];
+      final pagination = res['pagination'] ?? {};
+      setState(() {
+        _historyList.addAll(newItems);
+        _historyPage = nextPage;
+        _historyTotalCount = pagination['totalCount'] ?? _historyList.length;
+        _historyHasMore = pagination['hasMore'] ?? false;
+        _isHistoryLoadingMore = false;
+      });
+    } else {
+      setState(() => _isHistoryLoadingMore = false);
+    }
   }
 
   Future<void> _loadInitialBranding() async {
@@ -93,6 +186,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _manualQueueController.dispose();
+    _historyScrollController.dispose();
+    _historySearchController.dispose();
     _clockTimer.cancel();
     _pollingTimer?.cancel();
     super.dispose();
@@ -1159,7 +1254,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       );
-    } else {
+    } else if (_currentTabIndex == 1) {
       // Live Active Queue (Full View) - Strictly Current Day Only
       final dateFormat = DateFormat('EEE, MMM d, yyyy');
       return Scaffold(
@@ -1426,7 +1521,401 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       );
+    } else {
+      return _buildHistoryView();
     }
+  }
+
+  Widget _buildHistoryView() {
+    final dateFormat = DateFormat('MMM d, yyyy');
+    final timeFormat = DateFormat('h:mm a');
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: _themeColor,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        shadowColor: Colors.black26,
+        toolbarHeight: 70,
+        titleSpacing: 0,
+        automaticallyImplyLeading: false,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
+          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          tooltip: 'Menu',
+        ),
+        title: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Check-In History',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5, letterSpacing: -0.2),
+              ),
+              Text(
+                '$_historyTotalCount Total Checked-In Records',
+                style: const TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              onPressed: () => _fetchHistory(refresh: true),
+              icon: Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
+              ),
+              tooltip: 'Refresh History',
+            ),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Search & Filter Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            color: Colors.white,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: TextField(
+                      controller: _historySearchController,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) => _fetchHistory(refresh: true),
+                      decoration: InputDecoration(
+                        hintText: 'Search queue, citizen or ticket...',
+                        hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 19, color: Color(0xFF64748B)),
+                        suffixIcon: _historySearchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, size: 16, color: Color(0xFF64748B)),
+                                onPressed: () {
+                                  _historySearchController.clear();
+                                  _fetchHistory(refresh: true);
+                                },
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Material(
+                  color: _themeColor,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _fetchHistory(refresh: true),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      child: Icon(Icons.tune_rounded, color: Colors.white, size: 18),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
+
+          // History List View
+          Expanded(
+            child: _isHistoryLoading && _historyList.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(color: _themeColor),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Loading check-in history...',
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () => _fetchHistory(refresh: true),
+                    color: _themeColor,
+                    child: _historyList.isEmpty
+                        ? Center(
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFF1F5F9),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.history_toggle_off_rounded, size: 40, color: Color(0xFF94A3B8)),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  const Text(
+                                    'No Check-In Records Found',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF334155),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Scanned applicants will show up here automatically.',
+                                    style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            controller: _historyScrollController,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            itemCount: _historyList.length + (_historyHasMore ? 1 : 0),
+                            separatorBuilder: (_, __) => const SizedBox(height: 9),
+                            itemBuilder: (context, index) {
+                              if (index == _historyList.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  child: Center(
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(strokeWidth: 2, color: _themeColor),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        const Text(
+                                          'Loading more records...',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              final item = _historyList[index];
+                              final queueNo = item['queueNumber'] ?? 'N/A';
+                              final citizenName = item['citizenName'] ?? 'Citizen Applicant';
+                              final serviceName = item['serviceName'] ?? 'Municipal Service';
+                              final department = item['department'] ?? 'General';
+                              final isPriority = item['isPriority'] == true;
+                              final status = (item['status'] ?? 'WAITING').toString().toUpperCase();
+
+                              DateTime? checkInDate;
+                              if (item['checkedInAt'] != null) {
+                                checkInDate = DateTime.tryParse(item['checkedInAt'].toString());
+                              } else if (item['createdAt'] != null) {
+                                checkInDate = DateTime.tryParse(item['createdAt'].toString());
+                              }
+
+                              Color statusBg = const Color(0xFFEFF6FF);
+                              Color statusFg = const Color(0xFF2563EB);
+                              if (status == 'COMPLETED') {
+                                statusBg = const Color(0xFFDCFCE7);
+                                statusFg = const Color(0xFF16A34A);
+                              } else if (status == 'SERVING' || status == 'IN_PROGRESS') {
+                                statusBg = const Color(0xFFFEF3C7);
+                                statusFg = const Color(0xFFD97706);
+                              }
+
+                              return Container(
+                                padding: const EdgeInsets.all(13),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.02),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Queue Number Pill
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: _themeColor.withValues(alpha: 0.09),
+                                            borderRadius: BorderRadius.circular(9),
+                                            border: Border.all(color: _themeColor.withValues(alpha: 0.2)),
+                                          ),
+                                          child: Text(
+                                            queueNo,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 0.3,
+                                              color: _themeColor,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        // Citizen Name & Priority Tag
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      citizenName,
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        fontSize: 14,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: Color(0xFF0F172A),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (isPriority) ...[
+                                                    const SizedBox(width: 6),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(0xFFFEF2F2),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: const Color(0xFFFECACA)),
+                                                      ),
+                                                      child: const Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          Icon(Icons.star_rounded, size: 11, color: Color(0xFFDC2626)),
+                                                          SizedBox(width: 2),
+                                                          Text(
+                                                            'PRIORITY',
+                                                            style: TextStyle(
+                                                              fontSize: 9.5,
+                                                              fontWeight: FontWeight.w900,
+                                                              color: Color(0xFFDC2626),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                serviceName,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Color(0xFF475569),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // Status badge
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                          decoration: BoxDecoration(
+                                            color: statusBg,
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            status,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                              color: statusFg,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 9),
+                                    const Divider(height: 1, thickness: 0.8, color: Color(0xFFF1F5F9)),
+                                    const SizedBox(height: 7),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        // Department Chip
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.account_balance_rounded, size: 13, color: Color(0xFF64748B)),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              department,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        // Check-in Timestamp
+                                        if (checkInDate != null)
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.access_time_rounded, size: 12.5, color: Color(0xFF94A3B8)),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${dateFormat.format(checkInDate.toLocal())} • ${timeFormat.format(checkInDate.toLocal())}',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Color(0xFF64748B),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildAppDrawer() {
@@ -1564,6 +2053,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     setState(() => _currentTabIndex = 1);
+                  },
+                ),
+                const SizedBox(height: 6),
+                _buildDrawerItem(
+                  icon: Icons.history_rounded,
+                  title: 'Check-In History',
+                  isSelected: _currentTabIndex == 2,
+                  badgeText: _historyTotalCount > 0 ? '$_historyTotalCount' : null,
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() => _currentTabIndex = 2);
+                    if (_historyList.isEmpty) {
+                      _fetchHistory(refresh: true);
+                    }
                   },
                 ),
               ],

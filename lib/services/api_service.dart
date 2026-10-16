@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Local development testing server (mapped via `adb reverse tcp:3000 tcp:3000`)
-  static const String defaultBaseUrl = "https://emapandan.vercel.app";
+  static const String defaultBaseUrl = "http://127.0.0.1:3000";
   static const String appKey = "agno-mobile-secret-2024";
 
   // Supabase Realtime Configuration
@@ -304,6 +304,50 @@ class ApiService {
           'error': data['error'] ?? 'Check-in failed (${response.statusCode})',
         };
       }
+    } catch (e) {
+      return {'success': false, 'error': 'Connection error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getCheckInHistory({
+    int page = 1,
+    int limit = 15,
+    String? search,
+  }) async {
+    final base = await getBaseUrl();
+    final token = await getToken();
+
+    if (token == null) {
+      return {
+        'success': false,
+        'error': 'Session expired. Please login again.',
+      };
+    }
+
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    if (search != null && search.trim().isNotEmpty) {
+      queryParams['search'] = search.trim();
+    }
+
+    final uri = Uri.parse('$base/api/kiosk/history').replace(queryParameters: queryParams);
+
+    try {
+      final response = await http
+          .get(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+              'x-app-key': appKey,
+            },
+          )
+          .timeout(const Duration(seconds: 12));
+
+      final data = jsonDecode(response.body);
+      return data;
     } catch (e) {
       return {'success': false, 'error': 'Connection error: $e'};
     }
