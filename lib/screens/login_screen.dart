@@ -167,7 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Kiosk Check-In Terminal',
+                  'Kiosk Check-In',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
                 ),
@@ -298,7 +298,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
                           )
                         : const Text(
-                            'Sign In to Terminal',
+                            'Sign In',
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                   ),

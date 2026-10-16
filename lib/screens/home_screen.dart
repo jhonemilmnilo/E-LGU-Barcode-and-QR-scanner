@@ -13,6 +13,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _manualQueueController = TextEditingController();
   bool _isManualCheckingIn = false;
   int _currentTabIndex = 0;
@@ -584,12 +585,10 @@ class _HomeScreenState extends State<HomeScreen> {
       toolbarHeight: 70,
       titleSpacing: 0,
       automaticallyImplyLeading: false,
-      leading: Builder(
-        builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
-          onPressed: () => Scaffold.of(ctx).openDrawer(),
-          tooltip: 'Menu',
-        ),
+      leading: IconButton(
+        icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
+        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+        tooltip: 'Menu',
       ),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
@@ -646,7 +645,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   Text(
-                    'Kiosk Check-In Terminal',
+                    'Queue Number Scanner',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.85),
                       fontSize: 11.5,
@@ -769,7 +768,7 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const Text(
-            "Scan Applicant's QR Code",
+            "Scan Applicants",
             style: TextStyle(
               fontSize: 19,
               fontWeight: FontWeight.w800,
@@ -1169,28 +1168,34 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: _themeColor,
           foregroundColor: Colors.white,
           elevation: 2,
-          toolbarHeight: 64,
+          shadowColor: Colors.black26,
+          toolbarHeight: 70,
+          titleSpacing: 0,
           automaticallyImplyLeading: false,
-          leading: Builder(
-            builder: (ctx) => IconButton(
-              icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
-              onPressed: () => Scaffold.of(ctx).openDrawer(),
-              tooltip: 'Menu',
-            ),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
           ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Live Active Queue',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5, letterSpacing: -0.2),
-              ),
-              Text(
-                'Today • ${dateFormat.format(_currentTime)}',
-                style: const TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w500),
-              ),
-            ],
+          leading: IconButton(
+            icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
+            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+            tooltip: 'Menu',
+          ),
+          title: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Live Active Queue',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5, letterSpacing: -0.2),
+                ),
+                Text(
+                  'Today • ${dateFormat.format(_currentTime)}',
+                  style: const TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
           ),
           actions: [
             Padding(
@@ -1488,7 +1493,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 2),
                           const Text(
-                            'Frontdesk Kiosk Terminal',
+                            'Queue Number Scanner',
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 11.5,
@@ -1520,7 +1525,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(width: 6),
                       const Text(
-                        'Terminal Online • Active',
+                        'Online • Active',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 11,
@@ -1587,7 +1592,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: const Icon(Icons.logout_rounded, color: Colors.red, size: 20),
                 ),
                 title: const Text(
-                  'Sign Out Terminal',
+                  'Log Out',
                   style: TextStyle(
                     color: Color(0xFFDC2626),
                     fontWeight: FontWeight.w800,
@@ -1599,8 +1604,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     context: context,
                     builder: (ctx) => AlertDialog(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
-                      content: const Text('Are you sure you want to sign out of this scanner terminal?'),
+                      title: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.bold)),
+                      content: const Text('Are you sure you want to log out of this scanner?'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
@@ -1612,7 +1617,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             foregroundColor: Colors.white,
                           ),
                           onPressed: () => Navigator.pop(ctx, true),
-                          child: const Text('Sign Out'),
+                          child: const Text('Log Out'),
                         ),
                       ],
                     ),
@@ -1688,6 +1693,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: const Color(0xFFF8FAFC),
       drawer: _buildAppDrawer(),
       appBar: _currentTabIndex == 0 ? _buildAppBar() : null,
