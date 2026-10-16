@@ -1,4 +1,3 @@
-import '../theme/theme_controller.dart';
 import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
@@ -118,55 +117,16 @@ class _LoginScreenState extends State<LoginScreen> {
     final activeThemeColor = _themeColor ?? Theme.of(context).colorScheme.primary;
 
     final colors = context.colors;
-    final isDark = context.isDarkMode;
 
     return Scaffold(
       backgroundColor: colors.scaffoldBg,
       body: SafeArea(
-        child: Stack(
-          children: [
-            // Top Theme Toggle Button
-            Positioned(
-              top: 12,
-              right: 18,
-              child: Material(
-                color: colors.cardBg,
-                borderRadius: BorderRadius.circular(12),
-                elevation: 1,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => ThemeController.toggleTheme(),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                          size: 17,
-                          color: isDark ? const Color(0xFFF59E0B) : const Color(0xFF64748B),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          isDark ? 'Light' : 'Dark',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: colors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
                 // Municipal Seal Logo / Dynamic Barcode Icon
                 Container(
                   width: 96,
@@ -210,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Kiosk Check-In',
+                  'Front Desk Scanner',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: colors.textSecondary),
                 ),
@@ -347,10 +307,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ],
-                ),
-              ),
             ),
-          ],
+          ),
         ),
       ),
     );
