@@ -582,8 +582,15 @@ class _HomeScreenState extends State<HomeScreen> {
       elevation: 2,
       shadowColor: Colors.black26,
       toolbarHeight: 70,
-      titleSpacing: 16,
+      titleSpacing: 0,
       automaticallyImplyLeading: false,
+      leading: Builder(
+        builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+          tooltip: 'Menu',
+        ),
+      ),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
       ),
@@ -1153,133 +1160,540 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       );
-    } else if (_currentTabIndex == 1) {
-      // Full Queue View
+    } else {
+      // Live Active Queue (Full View) - Strictly Current Day Only
+      final dateFormat = DateFormat('EEE, MMM d, yyyy');
       return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
         appBar: AppBar(
-          title: const Text('Live Active Queue', style: TextStyle(fontWeight: FontWeight.bold)),
           backgroundColor: _themeColor,
           foregroundColor: Colors.white,
+          elevation: 2,
+          toolbarHeight: 64,
+          automaticallyImplyLeading: false,
+          leading: Builder(
+            builder: (ctx) => IconButton(
+              icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
+              onPressed: () => Scaffold.of(ctx).openDrawer(),
+              tooltip: 'Menu',
+            ),
+          ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Live Active Queue',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5, letterSpacing: -0.2),
+              ),
+              Text(
+                'Today • ${dateFormat.format(_currentTime)}',
+                style: const TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: IconButton(
+                onPressed: () {
+                  _fetchDashboardData();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Queue refreshed'),
+                      duration: Duration(seconds: 1),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+                icon: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
+                ),
+                tooltip: 'Refresh Queue',
+              ),
+            ),
+          ],
         ),
         body: RefreshIndicator(
           onRefresh: () => _fetchDashboardData(),
           color: _themeColor,
-          child: _activeQueue.isEmpty
-              ? const Center(child: Text('No active queue tickets'))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _activeQueue.length,
-                  itemBuilder: (context, index) {
-                    final item = _activeQueue[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: _themeColor.withValues(alpha: 0.1),
-                          child: Text(
-                            item['queueNumber'] ?? 'Q',
-                            style: TextStyle(color: _themeColor, fontWeight: FontWeight.bold, fontSize: 12),
-                          ),
-                        ),
-                        title: Text(item['serviceName'] ?? 'Service', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(item['department'] ?? 'Dept'),
-                        trailing: Text(
-                          item['status'] ?? 'Waiting',
-                          style: TextStyle(
-                            color: item['status'] == 'Now Serving' ? Colors.green : Colors.blue,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+          child: Column(
+            children: [
+              // Summary Banner
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 1)),
                 ),
-        ),
-      );
-    } else {
-      // Settings / Profile
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Terminal Settings', style: TextStyle(fontWeight: FontWeight.bold)),
-          backgroundColor: _themeColor,
-          foregroundColor: Colors.white,
-        ),
-        body: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            ListTile(
-              leading: Icon(Icons.sync_rounded, color: _themeColor),
-              title: const Text('Force Refresh Dashboard'),
-              onTap: () {
-                _fetchDashboardData();
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dashboard refreshed!')));
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout_rounded, color: Colors.red),
-              title: const Text('Sign Out Terminal', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-              onTap: () async {
-                await ApiService.clearAuth();
-                if (!mounted) return;
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
-              },
-            ),
-          ],
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF16A34A),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${_activeQueue.length} Active in Queue Today',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'Waiting: $_inQueue • Served: $_served',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Queue List
+              Expanded(
+                child: _activeQueue.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.checklist_rounded, size: 40, color: Color(0xFF94A3B8)),
+                            ),
+                            const SizedBox(height: 14),
+                            const Text(
+                              'No Active Tickets for Today',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF334155),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'All tickets for today have been completed or cleared.',
+                              style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        itemCount: _activeQueue.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final item = _activeQueue[index];
+                          final isNowServing = item['status'] == 'Now Serving';
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isNowServing ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
+                                width: isNowServing ? 1.5 : 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                // Compact High-Contrast Badge Pill
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isNowServing
+                                        ? const Color(0xFFDCFCE7)
+                                        : _themeColor.withValues(alpha: 0.09),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    item['queueNumber'] ?? 'N/A',
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.3,
+                                      color: isNowServing ? const Color(0xFF16A34A) : _themeColor,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // Service / Department
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item['serviceName'] ?? 'Municipal Service',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF1F5F9),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              item['department'] ?? 'General',
+                                              style: const TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF475569),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Status Pill
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: isNowServing
+                                        ? const Color(0xFFDCFCE7)
+                                        : const Color(0xFFEFF6FF),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isNowServing
+                                          ? const Color(0xFF86EFAC)
+                                          : const Color(0xFFBFDBFE),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    item['status'] ?? 'Waiting',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: isNowServing
+                                          ? const Color(0xFF16A34A)
+                                          : const Color(0xFF2563EB),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
       );
     }
+  }
+
+  Widget _buildAppDrawer() {
+    return Drawer(
+      backgroundColor: Colors.white,
+      child: Column(
+        children: [
+          // Drawer Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 52, 20, 24),
+            decoration: BoxDecoration(
+              color: _themeColor,
+              borderRadius: const BorderRadius.only(
+                bottomRight: Radius.circular(28),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.5),
+                      ),
+                      child: ClipOval(
+                        child: _siteLogo != null && _siteLogo!.isNotEmpty
+                            ? Image.network(
+                                _siteLogo!.startsWith('http')
+                                    ? _siteLogo!
+                                    : '${ApiService.defaultBaseUrl}$_siteLogo',
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.account_balance_rounded,
+                                  color: Colors.white,
+                                  size: 26,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.account_balance_rounded,
+                                color: Colors.white,
+                                size: 26,
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _municipalityName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Frontdesk Kiosk Terminal',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF4ADE80),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Terminal Online • Active',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Menu Navigation Items
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Column(
+              children: [
+                _buildDrawerItem(
+                  icon: Icons.qr_code_scanner_rounded,
+                  title: 'Scan & Check-In',
+                  isSelected: _currentTabIndex == 0,
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() => _currentTabIndex = 0);
+                  },
+                ),
+                const SizedBox(height: 6),
+                _buildDrawerItem(
+                  icon: Icons.people_alt_rounded,
+                  title: 'Live Active Queue',
+                  isSelected: _currentTabIndex == 1,
+                  badgeText: '${_activeQueue.length}',
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() => _currentTabIndex = 1);
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const Spacer(),
+
+          // Logout Button at Footer
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFFEE2E2)),
+              ),
+              child: ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.logout_rounded, color: Colors.red, size: 20),
+                ),
+                title: const Text(
+                  'Sign Out Terminal',
+                  style: TextStyle(
+                    color: Color(0xFFDC2626),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+                onTap: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
+                      content: const Text('Are you sure you want to sign out of this scanner terminal?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Sign Out'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true) {
+                    await ApiService.clearAuth();
+                    if (!mounted) return;
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    );
+                  }
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required bool isSelected,
+    required VoidCallback onTap,
+    String? badgeText,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isSelected ? _themeColor.withValues(alpha: 0.1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        leading: Icon(
+          icon,
+          color: isSelected ? _themeColor : const Color(0xFF64748B),
+          size: 22,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 14.5,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected ? _themeColor : const Color(0xFF1E293B),
+          ),
+        ),
+        trailing: badgeText != null && badgeText != '0'
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isSelected ? _themeColor : const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  badgeText,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected ? Colors.white : const Color(0xFF475569),
+                  ),
+                ),
+              )
+            : null,
+        onTap: onTap,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      drawer: _buildAppDrawer(),
       appBar: _currentTabIndex == 0 ? _buildAppBar() : null,
       body: SafeArea(
         top: _currentTabIndex != 0,
         child: _buildBody(),
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentTabIndex,
-          onTap: (index) {
-            setState(() => _currentTabIndex = index);
-          },
-          selectedItemColor: _themeColor,
-          unselectedItemColor: const Color(0xFF94A3B8),
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.qr_code_scanner_rounded),
-              label: 'Scan',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.groups_rounded),
-              label: 'Queue',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.history_rounded),
-              label: 'History',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              label: 'Settings',
-            ),
-          ],
-        ),
       ),
     );
   }

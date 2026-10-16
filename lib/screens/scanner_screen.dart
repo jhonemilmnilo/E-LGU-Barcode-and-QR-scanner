@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../services/api_service.dart';
-import 'login_screen.dart';
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
@@ -11,23 +9,44 @@ class ScannerScreen extends StatefulWidget {
   State<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends State<ScannerScreen> {
+class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProviderStateMixin {
   final MobileScannerController _scannerController = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     facing: CameraFacing.back,
     torchEnabled: false,
   );
 
-  final TextEditingController _manualInputController = TextEditingController();
   bool _isProcessing = false;
   bool _isFlashOn = false;
-  DateTime? _lastScannedTime;
-  String? _lastScannedCode;
+  bool _isCameraReady = false;
+
+  late AnimationController _animationController;
+  late Animation<double> _laserAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+
+    _laserAnimation = Tween<double>(begin: 0.05, end: 0.95).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
+    // Preload buffer: camera hardware initialization delay
+    Future.delayed(const Duration(milliseconds: 550), () {
+      if (mounted) {
+        setState(() => _isCameraReady = true);
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _animationController.dispose();
     _scannerController.dispose();
-    _manualInputController.dispose();
     super.dispose();
   }
 
@@ -44,299 +63,332 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
     setState(() => _isProcessing = true);
     HapticFeedback.mediumImpact();
-    
+
     // Immediately pop back to HomeScreen with the scanned code
     Navigator.pop(context, code);
   }
 
-  Future<void> _handleCheckIn(String code, {bool isPriority = false}) async {
-    setState(() {
-      _isProcessing = true;
-      _lastScannedCode = code;
-      _lastScannedTime = DateTime.now();
-    });
-
-    // Provide haptic feedback
-    HapticFeedback.mediumImpact();
-
-    final result = await ApiService.checkIn(
-      ticketOrQueueNumber: code,
-      isPriority: isPriority,
-    );
-
-    if (!mounted) return;
-
-    _showResultDialog(code: code, result: result);
-  }
-
-  void _showResultDialog({required String code, required Map<String, dynamic> result}) {
-    final bool isSuccess = result['success'] == true;
-    final ticketData = result['ticket'];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 48,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isSuccess ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isSuccess ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                  color: isSuccess ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
-                  size: 48,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                isSuccess ? 'CHECK-IN SUCCESSFUL' : 'CHECK-IN REJECTED',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: isSuccess ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (ticketData != null && ticketData['queueNumber'] != null) ...[
-                Text(
-                  'Queue: ${ticketData['queueNumber']}',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-                if (ticketData['serviceName'] != null)
-                  Text(
-                    '${ticketData['serviceName']}',
-                    style: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
-                  ),
-                const SizedBox(height: 8),
-              ],
-              Text(
-                isSuccess
-                    ? (result['message'] ?? 'Ticket has been queued for calling.')
-                    : (result['error'] ?? 'Invalid or expired ticket'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: isSuccess ? const Color(0xFF334155) : const Color(0xFF991B1B),
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    setState(() {
-                      _isProcessing = false;
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isSuccess ? const Color(0xFF16A34A) : const Color(0xFF0F172A),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text(
-                    'Scan Next Ticket',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    ).then((_) {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
-    });
-  }
-
-  void _showManualInputDialog() {
-    _manualInputController.clear();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Manual Ticket Entry', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Enter the Ticket No, Queue No, or Transaction ID:',
-                style: TextStyle(fontSize: 13, color: Colors.black54),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _manualInputController,
-                autofocus: true,
-                textCapitalization: TextCapitalization.characters,
-                decoration: InputDecoration(
-                  labelText: 'Ticket / Queue Code',
-                  hintText: 'e.g. T-001 or CUID',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  prefixIcon: const Icon(Icons.receipt_long_rounded),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final code = _manualInputController.text.trim();
-                if (code.isNotEmpty) {
-                  Navigator.pop(context);
-                  _handleCheckIn(code);
-                }
-              },
-              child: const Text('Check In'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _logout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to log out of the scanner?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Log Out'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      await ApiService.clearAuth();
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    const double cutOutSize = 260.0;
+
     return Scaffold(
       backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         foregroundColor: Colors.white,
-        title: const Text(
-          'Frontdesk Scanner',
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        leading: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.4),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, size: 20),
+            onPressed: () => Navigator.pop(context),
+            tooltip: 'Back',
+          ),
         ),
+        title: const Text(
+          'Scan QR Ticket',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 17,
+            letterSpacing: 0.3,
+            color: Colors.white,
+          ),
+        ),
+        centerTitle: true,
         actions: [
-          IconButton(
-            icon: Icon(_isFlashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded),
-            onPressed: () async {
-              await _scannerController.toggleTorch();
-              setState(() => _isFlashOn = !_isFlashOn);
-            },
-            tooltip: 'Toggle Flashlight',
-          ),
-          IconButton(
-            icon: const Icon(Icons.keyboard_alt_outlined),
-            onPressed: _showManualInputDialog,
-            tooltip: 'Manual Entry',
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: _logout,
-            tooltip: 'Sign Out',
+          Container(
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.4),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: Icon(
+                _isFlashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+                color: _isFlashOn ? Colors.amber : Colors.white,
+                size: 20,
+              ),
+              onPressed: () async {
+                await _scannerController.toggleTorch();
+                setState(() => _isFlashOn = !_isFlashOn);
+              },
+              tooltip: 'Toggle Flash',
+            ),
           ),
         ],
       ),
       body: Stack(
-        alignment: Alignment.center,
+        fit: StackFit.expand,
         children: [
+          // 1. Live Camera Stream
           MobileScanner(
             controller: _scannerController,
             onDetect: _onDetect,
           ),
-          // Viewfinder reticle overlay
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: _isProcessing ? Colors.amber : Colors.white.withValues(alpha: 0.6),
-                width: 2.5,
+
+          // 2. Preload Shimmer Placeholder (fades out once camera hardware is warm)
+          AnimatedOpacity(
+            opacity: _isCameraReady ? 0.0 : 1.0,
+            duration: const Duration(milliseconds: 300),
+            child: IgnorePointer(
+              ignoring: _isCameraReady,
+              child: Container(
+                color: const Color(0xFF0F172A),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 70,
+                        height: 70,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                        ),
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Starting Scanner Camera...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Calibrating optical sensor',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              borderRadius: BorderRadius.circular(16),
             ),
-            width: 260,
-            height: 260,
           ),
-          // Helper instructions
-          Positioned(
-            bottom: 40,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(20),
+
+          // 3. Darkened Semi-Transparent Vignette Mask with Clear Cutout
+          if (_isCameraReady)
+            ColorFiltered(
+              colorFilter: ColorFilter.mode(
+                Colors.black.withValues(alpha: 0.65),
+                BlendMode.srcOut,
               ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Icon(Icons.center_focus_strong_rounded, color: Colors.white70, size: 18),
-                  SizedBox(width: 8),
-                  Text(
-                    'Point camera at QR Code or Barcode',
-                    style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.black,
+                      backgroundBlendMode: BlendMode.dstOut,
+                    ),
+                  ),
+                  Center(
+                    child: Container(
+                      width: cutOutSize,
+                      height: cutOutSize,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
+
+          // 4. Viewfinder Frame: 4 Laser Corner Accents + Scanning Laser Beam
+          if (_isCameraReady)
+            Center(
+              child: SizedBox(
+                width: cutOutSize,
+                height: cutOutSize,
+                child: Stack(
+                  children: [
+                    // Viewfinder Custom Corner Borders
+                    CustomPaint(
+                      size: const Size(cutOutSize, cutOutSize),
+                      painter: _ViewfinderCornerPainter(
+                        cornerColor: _isProcessing ? Colors.greenAccent : const Color(0xFF38BDF8),
+                      ),
+                    ),
+
+                    // Laser Scanning Bar
+                    AnimatedBuilder(
+                      animation: _laserAnimation,
+                      builder: (context, child) {
+                        return Positioned(
+                          top: _laserAnimation.value * (cutOutSize - 20),
+                          left: 12,
+                          right: 12,
+                          child: Container(
+                            height: 3,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.transparent,
+                                  _isProcessing ? Colors.greenAccent : const Color(0xFF38BDF8),
+                                  _isProcessing ? Colors.white : Colors.cyanAccent,
+                                  _isProcessing ? Colors.greenAccent : const Color(0xFF38BDF8),
+                                  Colors.transparent,
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (_isProcessing ? Colors.greenAccent : const Color(0xFF38BDF8)).withValues(alpha: 0.7),
+                                  blurRadius: 10,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // 5. Instruction Pill at Bottom
+          if (_isCameraReady)
+            Positioned(
+              bottom: 48,
+              left: 20,
+              right: 20,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.75),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isProcessing ? Icons.check_circle_rounded : Icons.qr_code_scanner_rounded,
+                        color: _isProcessing ? Colors.greenAccent : const Color(0xFF38BDF8),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _isProcessing ? 'Verifying Ticket...' : 'Align QR code inside the frame',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // 6. Processing Fullscreen Dimmer (when scanned)
           if (_isProcessing)
             Container(
-              color: Colors.black45,
+              color: Colors.black.withValues(alpha: 0.4),
               child: const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  color: Colors.greenAccent,
+                ),
               ),
             ),
         ],
       ),
     );
+  }
+}
+
+/// Custom Painter that draws high-tech 4-corner brackets for the viewfinder HUD
+class _ViewfinderCornerPainter extends CustomPainter {
+  final Color cornerColor;
+  final double cornerLength;
+  final double strokeWidth;
+  final double borderRadius;
+
+  _ViewfinderCornerPainter({
+    required this.cornerColor,
+    this.cornerLength = 28.0,
+    this.strokeWidth = 3.5,
+    this.borderRadius = 16.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = cornerColor
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final w = size.width;
+    final h = size.height;
+
+    // Top-Left Corner
+    final tlPath = Path()
+      ..moveTo(0, cornerLength)
+      ..lineTo(0, borderRadius)
+      ..quadraticBezierTo(0, 0, borderRadius, 0)
+      ..lineTo(cornerLength, 0);
+    canvas.drawPath(tlPath, paint);
+
+    // Top-Right Corner
+    final trPath = Path()
+      ..moveTo(w - cornerLength, 0)
+      ..lineTo(w - borderRadius, 0)
+      ..quadraticBezierTo(w, 0, w, borderRadius)
+      ..lineTo(w, cornerLength);
+    canvas.drawPath(trPath, paint);
+
+    // Bottom-Left Corner
+    final blPath = Path()
+      ..moveTo(0, h - cornerLength)
+      ..lineTo(0, h - borderRadius)
+      ..quadraticBezierTo(0, h, borderRadius, h)
+      ..lineTo(cornerLength, h);
+    canvas.drawPath(blPath, paint);
+
+    // Bottom-Right Corner
+    final brPath = Path()
+      ..moveTo(w - cornerLength, h)
+      ..lineTo(w - borderRadius, h)
+      ..quadraticBezierTo(w, h, w, h - borderRadius)
+      ..lineTo(w, h - cornerLength);
+    canvas.drawPath(brPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ViewfinderCornerPainter oldDelegate) {
+    return oldDelegate.cornerColor != cornerColor;
   }
 }
